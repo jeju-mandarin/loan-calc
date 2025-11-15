@@ -37,15 +37,20 @@
             width: 100%; flex: 1; padding: 12px; border: 1px solid #ddd;
             border-radius: 5px; font-size: 16px;
             font-family: inherit; background-color: #fff;
-            appearance: textfield;
-            -moz-appearance: textfield;
+            appearance: textfield; 
+            text-align: right;
         }
         .input-field input[type="number"]::-webkit-outer-spin-button,
         .input-field input[type="number"]::-webkit-inner-spin-button {
+            /* Webkit 계열 스피너 제거는 유지 */
             -webkit-appearance: none; margin: 0;
         }
         .input-field .unit {
-            margin-left: 10px; font-size: 16px; color: #333;
+            margin-left: 1px;
+            font-size: 16px;
+            color: #333;
+            min-width: 35px;
+            text-align: right;
         }
         button {
             width: 100%; padding: 12px 20px; background-color: #d9534f;
@@ -163,7 +168,10 @@
                 </div>
             </div>
             <div class="input-group">
-                <label for="loan-amount">대출 총 금액</label>
+                <label for="loan-amount">
+                    대출 총 금액
+                    <span id="loan-amount-korean" class="korean-display"></span> 
+                </label>
                 <div class="input-field">
                     <input type="number" id="loan-amount" value="100000000" step="1000000">
                     <span class="unit">원</span>
@@ -190,7 +198,6 @@
                     <span class="unit">개월</span>
                 </div>
             </div>
-
             <button id="calculate-btn">계산하기</button>
         </div>
 
@@ -234,9 +241,9 @@
     </div>
 
     <script>
-        // (JavaScript 로직 ...)
+        // (JavaScript 로직은 이전과 동일합니다.)
         
-        // 1. 필요한 HTML 요소 선택 (이전과 동일)
+        // 1. 필요한 HTML 요소 선택
         const calcTypeSelect = document.getElementById('calc-type');
         const loanAmountInput = document.getElementById('loan-amount');
         const annualRateInput = document.getElementById('annual-rate');
@@ -255,7 +262,10 @@
         const comparisonInterest = document.getElementById('comparison-interest');
         const comparisonTotalAmount = document.getElementById('comparison-total-amount');
 
-        // 2. 헬퍼 함수 (이전과 동일)
+        const loanAmountKoreanEl = document.getElementById('loan-amount-korean');
+
+
+        // 2. 헬퍼 함수
         function formatToWon(number, showSign = false) {
             const rounded = Math.round(number);
             let str = rounded.toLocaleString('ko-KR') + ' 원';
@@ -267,7 +277,47 @@
             return str;
         }
 
-        // 3. 원리금 균등 계산 함수 (이전과 동일)
+        // 3. [수정된 함수] (3) 숫자 -> 한글 금액 변환
+        function formatKoreanCurrency(number) {
+            if (number === 0) return '(0 원)';
+            const units = ['', '만', '억', '조', '경'];
+            const smallUnits = ['', '십', '백', '천'];
+            let result = [];
+            let numStr = String(number);
+            
+            let unitIndex = 0; 
+
+            while (numStr.length > 0) {
+                let chunk = numStr.slice(-4);
+                numStr = numStr.slice(0, -4);
+                zq
+                let chunkStr = '';
+                let chunkNum = parseInt(chunk);
+                if (chunkNum > 0) {
+                    let tempChunkStr = '';
+                    let strChunk = String(chunkNum);
+                    let len = strChunk.length;
+                    for (let i = 0; i < len; i++) {
+                        let digit = parseInt(strChunk[i]);
+                        if (digit > 0) {
+                            tempChunkStr += digit; 
+                            tempChunkStr += smallUnits[len - 1 - i];
+                        }
+                    }
+                    chunkStr = tempChunkStr;
+                }
+
+                if (chunkStr) {
+                    result.push(chunkStr + units[unitIndex]);
+                }
+                
+                unitIndex++; 
+            }
+            return `(${result.reverse().join(' ')} 원)`;
+        }
+
+
+        // 4. 원리금 균등 계산 함수
         function calculateEqualPayment(principal, monthlyRate, totalMonths, graceMonths, paymentMonths) {
             let totalInterest = 0;
             let currentBalance = principal;
@@ -316,7 +366,7 @@
             return { totalInterest, totalRepayment: principal + totalInterest, scheduleHtml };
         }
 
-        // 4. 원금 균등 계산 함수 (이전과 동일)
+        // 5. 원금 균등 계산 함수
         function calculateEqualPrincipal(principal, monthlyRate, totalMonths, graceMonths, paymentMonths) {
             let totalInterest = 0;
             let currentBalance = principal;
@@ -354,10 +404,9 @@
             return { totalInterest, totalRepayment: principal + totalInterest, scheduleHtml };
         }
 
-        // 5. 계산하기 버튼 클릭 이벤트
+        // 6. 계산하기 버튼 클릭 이벤트
         calculateBtn.addEventListener('click', function() {
             
-            // 5-1. 입력 값 가져오기 (이전과 동일)
             const calcType = calcTypeSelect.value;
             const principal = parseFloat(loanAmountInput.value);
             const annualRate = parseFloat(annualRateInput.value) / 100;
@@ -368,7 +417,6 @@
             const totalMonths = years * 12;
             const paymentMonths = totalMonths - graceMonths; 
 
-            // 5-2. 유효성 검사 (이전과 동일)
             if (isNaN(principal) || isNaN(annualRate) || isNaN(years) || isNaN(graceMonths) ||
                 principal <= 0 || annualRate < 0 || years <= 0 || graceMonths < 0) {
                 alert("유효한 값을 입력해주세요.");
@@ -379,7 +427,6 @@
                 return;
             }
 
-            // 5-3. 두 방식 모두 계산 (이전과 동일)
             const equalPaymentResult = calculateEqualPayment(principal, monthlyRate, totalMonths, graceMonths, paymentMonths);
             const equalPrincipalResult = calculateEqualPrincipal(principal, monthlyRate, totalMonths, graceMonths, paymentMonths);
             
@@ -395,24 +442,26 @@
                 comparisonLabelText = "(참고: 원리금 균등상환 시)";
             }
 
-            // 5-4. [수정] 차액 계산 (비교 대상 기준)
             const interestDifference = comparisonResult.totalInterest - mainResult.totalInterest;
             
-            // 5-5. 결과 표시 (요약)
             principalEl.textContent = formatToWon(principal);
             interestEl.textContent = formatToWon(mainResult.totalInterest);
             totalEl.textContent = formatToWon(mainResult.totalRepayment);
             
-            // 5-6. 결과 표시 (상세 리스트)
             scheduleListEl.innerHTML = mainResult.scheduleHtml;
             
-            // 5-7. 결과 표시 (비교)
             comparisonLabel.textContent = comparisonLabelText;
-            comparisonInterest.textContent = formatToWon(interestDifference, true); // 이자 차액
-            comparisonTotalAmount.textContent = formatToWon(comparisonResult.totalRepayment, false); // 비교군 총 상환액
+            comparisonInterest.textContent = formatToWon(interestDifference, true);
+            comparisonTotalAmount.textContent = formatToWon(comparisonResult.totalRepayment, false);
 
             resultDisplay.style.display = 'block';
         });
+
+        // 7. 대출 금액 입력 시 한글 금액 실시간 업데이트
+        loanAmountInput.addEventListener('input', updateKoreanCurrency);
+
+        // 8. 페이지 로드 시 기본값에 대한 한글 금액 표시
+        updateKoreanCurrency();
 
     </script>
 
