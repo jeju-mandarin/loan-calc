@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대출 이자 계산기 (비교 기능)</title>
+    <style>
+        /* (CSS 스타일은 이전과 동일합니다.) */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column; min-height: 100vh;
+            background-color: #f0f4f8; margin: 0; padding: 20px 0;
+        }
+        .container {
+            background-color: #ffffff; padding: 25px 30px; border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: center;
+            width: 90%; 
+            max-width: 550px; 
+        }
+        h1 {
+            color: #333; margin-top: 0; margin-bottom: 25px;
+            font-size: 1.6rem;
+        }
+        .input-group {
+            margin-bottom: 15px; text-align: left;
+        }
+        .input-group label {
+            display: block; margin-bottom: 5px;
+            font-weight: 500; color: #555;
+        }
+        .input-field {
+            display: flex; align-items: center;
+        }
+        .input-field input[type="number"],
+        .input-field select {
+            width: 100%; flex: 1; padding: 12px; border: 1px solid #ddd;
+            border-radius: 5px; font-size: 16px;
+            font-family: inherit; background-color: #fff;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+        .input-field input[type="number"]::-webkit-outer-spin-button,
+        .input-field input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none; margin: 0;
+        }
+        .input-field .unit {
+            margin-left: 10px; font-size: 16px; color: #333;
+        }
+        button {
+            width: 100%; padding: 12px 20px; background-color: #d9534f;
+            color: white; border: none; border-radius: 5px;
+            font-size: 16px; font-weight: 500; cursor: pointer;
+            transition: background-color 0.2s; margin-top: 10px;
+        }
+        button:hover { background-color: #c9302c; }
+        
+        #result-display {
+            margin-top: 25px; background-color: #f9f9f9;
+            border: 1px solid #eee; border-radius: 8px;
+            padding: 20px; text-align: left;
+            display: none;
+        }
+        .result-row {
+            display: flex; justify-content: space-between;
+            align-items: center; font-size: 1rem; margin-bottom: 12px;
+        }
+        .result-row .label { font-weight: 500; color: #555; }
+        .result-row .value {
+            font-weight: 600; color: #333;
+            font-variant-numeric: tabular-nums;
+        }
+        .result-total {
+            border-top: 1px solid #ddd; padding-top: 15px;
+            margin-top: 15px; font-size: 1.1rem; font-weight: 600;
+        }
+        .result-total .value {
+            font-size: 1.2rem;
+            color: #d9534f;
+        }
+        
+        #comparison-display {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px dashed #ccc;
+            color: #777;
+            font-size: 0.9rem;
+        }
+        #comparison-display .label {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        #comparison-display .comp-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        #comparison-display .comp-value { 
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .schedule-container {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+            text-align: left;
+        }
+        .schedule-container .label {
+            font-weight: 500; color: #555;
+            font-size: 1rem; margin-bottom: 10px;
+        }
+        #payment-schedule-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+            scrollbar-width: thin;
+            scrollbar-color: #ccc #f1f1f1;
+        }
+        #payment-schedule-list::-webkit-scrollbar { width: 8px; }
+        #payment-schedule-list::-webkit-scrollbar-track { background: #f1f1f1; }
+        #payment-schedule-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        #payment-schedule-list::-webkit-scrollbar-thumb:hover { background: #aaa; }
+        
+        .schedule-header, .schedule-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr 2fr 2.5fr; 
+            gap: 5px;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .schedule-header {
+            font-weight: 600;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+            position: sticky; top: 0;
+        }
+        .schedule-row { border-bottom: 1px solid #eee; }
+        .schedule-row:last-child { border-bottom: none; }
+        .schedule-header span, .schedule-row span { text-align: right; }
+        .schedule-header span:first-child, .schedule-row span:first-child {
+            text-align: right; 
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🏦 대출 이자 계산기</h1>
+        
+        <div class="calculator-form">
+            <div class="input-group">
+                <label for="calc-type">상환 방식</label>
+                <div class="input-field">
+                    <select id="calc-type">
+                        <option value="equal-payment">원리금 균등상환</option>
+                        <option value="equal-principal">원금 균등상환</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="loan-amount">대출 총 금액</label>
+                <div class="input-field">
+                    <input type="number" id="loan-amount" value="100000000" step="1000000">
+                    <span class="unit">원</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="annual-rate">연 이자율</label>
+                <div class="input-field">
+                    <input type="number" id="annual-rate" value="5" step="0.1">
+                    <span class="unit">%</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="loan-years">상환 기간</label>
+                <div class="input-field">
+                    <input type="number" id="loan-years" value="10" step="1" min="1">
+                    <span class="unit">년</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="grace-months">원금 납부 유예기간 (거치기간)</label>
+                <div class="input-field">
+                    <input type="number" id="grace-months" value="0" step="1" min="0">
+                    <span class="unit">개월</span>
+                </div>
+            </div>
+
+            <button id="calculate-btn">계산하기</button>
+        </div>
+
+        <div id="result-display">
+            <div class="result-row">
+                <span class="label">총 원금</span>
+                <span class="value" id="result-principal">0 원</span>
+            </div>
+            <div class="result-row">
+                <span class="label">총 이자</span>
+                <span class="value" id="result-interest">0 원</span>
+            </div>
+            <div class="result-row result-total">
+                <span class="label">총 상환 금액</span>
+                <span class="value" id="result-total">0 원</span>
+            </div>
+            <div class="schedule-container">
+                <span class="label">월 상환금 상세</span>
+                <div class="schedule-header">
+                    <span>회차</span>
+                    <span>상환 원금</span>
+                    <span>납부 이자</span>
+                    <span>월 납입액</span>
+                    <span>대출 잔액</span>
+                </div>
+                <div id="payment-schedule-list">
+                    </div>
+            </div>
+            <div id="comparison-display">
+                <div class="label" id="comparison-label">(참고: 원금 균등상환 시)</div>
+                <div class="comp-row">
+                    <span>총 이자 차액:</span>
+                    <span class="comp-value" id="comparison-interest">0 원</span>
+                </div>
+                <div class="comp-row">
+                    <span>총 상환 금액:</span>
+                    <span class="comp-value" id="comparison-total-amount">0 원</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // (JavaScript 로직 ...)
+        
+        // 1. 필요한 HTML 요소 선택 (이전과 동일)
+        const calcTypeSelect = document.getElementById('calc-type');
+        const loanAmountInput = document.getElementById('loan-amount');
+        const annualRateInput = document.getElementById('annual-rate');
+        const loanYearsInput = document.getElementById('loan-years');
+        const graceMonthsInput = document.getElementById('grace-months');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const resultDisplay = document.getElementById('result-display');
+        
+        const principalEl = document.getElementById('result-principal');
+        const interestEl = document.getElementById('result-interest');
+        const totalEl = document.getElementById('result-total');
+        const scheduleListEl = document.getElementById('payment-schedule-list');
+
+        const comparisonDisplay = document.getElementById('comparison-display');
+        const comparisonLabel = document.getElementById('comparison-label');
+        const comparisonInterest = document.getElementById('comparison-interest');
+        const comparisonTotalAmount = document.getElementById('comparison-total-amount');
+
+        // 2. 헬퍼 함수 (이전과 동일)
+        function formatToWon(number, showSign = false) {
+            const rounded = Math.round(number);
+            let str = rounded.toLocaleString('ko-KR') + ' 원';
+            if (showSign) {
+                if (rounded > 0) str = `+ ${str}`;
+                else if (rounded < 0) str = `- ${Math.abs(rounded).toLocaleString('ko-KR')} 원`;
+                else str = `(차이 없음)`;
+            }
+            return str;
+        }
+
+        // 3. 원리금 균등 계산 함수 (이전과 동일)
+        function calculateEqualPayment(principal, monthlyRate, totalMonths, graceMonths, paymentMonths) {
+            let totalInterest = 0;
+            let currentBalance = principal;
+            let scheduleHtml = '';
+            let fixedMonthlyPayment = 0;
+
+            if (monthlyRate === 0) {
+                fixedMonthlyPayment = (paymentMonths > 0) ? principal / paymentMonths : 0;
+            } else {
+                const power = Math.pow(1 + monthlyRate, paymentMonths);
+                fixedMonthlyPayment = (paymentMonths > 0) ? (principal * ( (monthlyRate * power) / (power - 1) )) : 0;
+            }
+
+            for (let i = 1; i <= totalMonths; i++) {
+                const interestForMonth = currentBalance * monthlyRate;
+                totalInterest += interestForMonth;
+                
+                let principalForMonth = 0;
+                let totalPaymentForMonth = 0;
+
+                if (i <= graceMonths) {
+                    principalForMonth = 0;
+                    totalPaymentForMonth = interestForMonth;
+                } else {
+                    principalForMonth = fixedMonthlyPayment - interestForMonth;
+                    totalPaymentForMonth = fixedMonthlyPayment;
+                    currentBalance -= principalForMonth; 
+                }
+                
+                if (i === totalMonths && currentBalance > -1 && currentBalance < 1) {
+                    principalForMonth += currentBalance;
+                    totalPaymentForMonth += currentBalance;
+                    currentBalance = 0;
+                }
+
+                scheduleHtml += `
+                    <div class="schedule-row">
+                        <span>${i}회</span>
+                        <span>${formatToWon(principalForMonth)}</span>
+                        <span>${formatToWon(interestForMonth)}</span>
+                        <span>${formatToWon(totalPaymentForMonth)}</span>
+                        <span>${formatToWon(currentBalance)}</span>
+                    </div>
+                `;
+            }
+            return { totalInterest, totalRepayment: principal + totalInterest, scheduleHtml };
+        }
+
+        // 4. 원금 균등 계산 함수 (이전과 동일)
+        function calculateEqualPrincipal(principal, monthlyRate, totalMonths, graceMonths, paymentMonths) {
+            let totalInterest = 0;
+            let currentBalance = principal;
+            let scheduleHtml = '';
+            const fixedPrincipalPayment = (paymentMonths > 0) ? principal / paymentMonths : 0;
+
+            for (let i = 1; i <= totalMonths; i++) {
+                const interestForMonth = currentBalance * monthlyRate;
+                totalInterest += interestForMonth;
+                
+                let principalForMonth = 0;
+
+                if (i > graceMonths) {
+                    principalForMonth = fixedPrincipalPayment;
+                    currentBalance -= principalForMonth;
+                }
+                
+                const totalPaymentForMonth = principalForMonth + interestForMonth;
+
+                if (i === totalMonths && currentBalance > -1 && currentBalance < 1) {
+                    principalForMonth += currentBalance;
+                    currentBalance = 0;
+                }
+                
+                scheduleHtml += `
+                    <div class="schedule-row">
+                        <span>${i}회</span>
+                        <span>${formatToWon(principalForMonth)}</span>
+                        <span>${formatToWon(interestForMonth)}</span>
+                        <span>${formatToWon(totalPaymentForMonth)}</span>
+                        <span>${formatToWon(currentBalance)}</span>
+                    </div>
+                `;
+            }
+            return { totalInterest, totalRepayment: principal + totalInterest, scheduleHtml };
+        }
+
+        // 5. 계산하기 버튼 클릭 이벤트
+        calculateBtn.addEventListener('click', function() {
+            
+            // 5-1. 입력 값 가져오기 (이전과 동일)
+            const calcType = calcTypeSelect.value;
+            const principal = parseFloat(loanAmountInput.value);
+            const annualRate = parseFloat(annualRateInput.value) / 100;
+            const years = parseFloat(loanYearsInput.value);
+            const graceMonths = parseFloat(graceMonthsInput.value);
+            
+            const monthlyRate = annualRate / 12;
+            const totalMonths = years * 12;
+            const paymentMonths = totalMonths - graceMonths; 
+
+            // 5-2. 유효성 검사 (이전과 동일)
+            if (isNaN(principal) || isNaN(annualRate) || isNaN(years) || isNaN(graceMonths) ||
+                principal <= 0 || annualRate < 0 || years <= 0 || graceMonths < 0) {
+                alert("유효한 값을 입력해주세요.");
+                return;
+            }
+            if (paymentMonths <= 0) {
+                alert("상환 기간은 유예기간보다 길어야 합니다.");
+                return;
+            }
+
+            // 5-3. 두 방식 모두 계산 (이전과 동일)
+            const equalPaymentResult = calculateEqualPayment(principal, monthlyRate, totalMonths, graceMonths, paymentMonths);
+            const equalPrincipalResult = calculateEqualPrincipal(principal, monthlyRate, totalMonths, graceMonths, paymentMonths);
+            
+            let mainResult, comparisonResult, comparisonLabelText;
+
+            if (calcType === 'equal-payment') {
+                mainResult = equalPaymentResult;
+                comparisonResult = equalPrincipalResult;
+                comparisonLabelText = "(참고: 원금 균등상환 시)";
+            } else {
+                mainResult = equalPrincipalResult;
+                comparisonResult = equalPaymentResult;
+                comparisonLabelText = "(참고: 원리금 균등상환 시)";
+            }
+
+            // 5-4. [수정] 차액 계산 (비교 대상 기준)
+            const interestDifference = comparisonResult.totalInterest - mainResult.totalInterest;
+            
+            // 5-5. 결과 표시 (요약)
+            principalEl.textContent = formatToWon(principal);
+            interestEl.textContent = formatToWon(mainResult.totalInterest);
+            totalEl.textContent = formatToWon(mainResult.totalRepayment);
+            
+            // 5-6. 결과 표시 (상세 리스트)
+            scheduleListEl.innerHTML = mainResult.scheduleHtml;
+            
+            // 5-7. 결과 표시 (비교)
+            comparisonLabel.textContent = comparisonLabelText;
+            comparisonInterest.textContent = formatToWon(interestDifference, true); // 이자 차액
+            comparisonTotalAmount.textContent = formatToWon(comparisonResult.totalRepayment, false); // 비교군 총 상환액
+
+            resultDisplay.style.display = 'block';
+        });
+
+    </script>
+
+</body>
+</html>
